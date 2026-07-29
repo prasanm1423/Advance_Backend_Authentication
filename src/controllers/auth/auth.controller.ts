@@ -66,3 +66,38 @@ export async function registerHandler(req: Request, res: Response) {
     });
   }
 }
+export async function verifyHandle(req: Request, res: Response) {
+  const token = req.query.token as string | undefined;
+  if (!token) {
+    return res.status(400).json({
+      message: "Needed Token.Token missing At email Verification.",
+    });
+  }
+  try {
+    const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as {
+      sub: string;
+    };
+    const user = await User.findById(payload.sub);
+    if (!user) {
+      return res.status(400).json({
+        message: "User not found While Verification",
+      });
+    }
+    if (user.isEmailVerified) {
+      return res.json({
+        message: "User Already Verified",
+      });
+    }
+    user.isEmailVerified = true;
+    await user.save();
+    return res.json({
+      message: "Email is Verified.You can login",
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: "Error While verifying User",
+      Error: err,
+    });
+  }
+}
