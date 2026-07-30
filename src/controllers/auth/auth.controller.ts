@@ -1,7 +1,8 @@
 import { sendEmail } from "../../lib/email.js";
-import { hashPass } from "../../lib/hash.js";
+import { checkPass, hashPass } from "../../lib/hash.js";
+import { createAccesToken, createRefreshToken } from "../../lib/token.js";
 import { User } from "../../models/user.model.js";
-import { registerSchema } from "./auth.schema.js";
+import { loginSchema, registerSchema } from "./auth.schema.js";
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
@@ -98,6 +99,62 @@ export async function verifyHandle(req: Request, res: Response) {
     return res.status(500).json({
       message: "Error While verifying User",
       Error: err,
+    });
+  }
+}
+export async function loginHandler(req: Request, res: Response) {
+  try {
+    const result = loginSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Data entered is InCorrect or Invalid",
+        error: result.error.flatten(),
+      });
+    }
+    const { email, password } = result.data;
+    const normEmail = email.toLocaleLowerCase().trim();
+    const user = await User.findOne({ email: normEmail });
+    if (!user) {
+      return res.status(400).json({
+        message: "User not found with Paticular details",
+      });
+    }
+    const ok = await checkPass(password, user.password);
+    if (!ok) {
+      return res.status(400).json({
+        message: "Invalid Password",
+      });
+    }
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        message: "Email not verified Please Verify Email first",
+      });
+    }
+    const accessToken = createAccesToken(user.id, user.role, user.tokenVersion);
+    const refreshToken = createRefreshToken(user.id, user.tokenVersion);
+    const isProd = process.env.NODE_ENV === "production";
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 10 * 24 * 60 * 60 * 1000,
+    });
+    return res.status(200).json({
+      message: "Login is Successfull",
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+        twoFactorEnabled: user.twoFactorEnabled,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(400).json({
+      messgae: "Error while Logging in user",
+      Error: error,
     });
   }
 }
