@@ -1,6 +1,11 @@
+import { access } from "fs";
 import { sendEmail } from "../../lib/email.js";
 import { checkPass, hashPass } from "../../lib/hash.js";
-import { createAccesToken, createRefreshToken } from "../../lib/token.js";
+import {
+  createAccesToken,
+  createRefreshToken,
+  verifyRefreshToken,
+} from "../../lib/token.js";
 import { User } from "../../models/user.model.js";
 import { loginSchema, registerSchema } from "./auth.schema.js";
 import { Request, Response } from "express";
@@ -154,6 +159,58 @@ export async function loginHandler(req: Request, res: Response) {
     console.error(error);
     return res.status(400).json({
       messgae: "Error while Logging in user",
+      Error: error,
+    });
+  }
+}
+export async function refreshHandler(req: Request, res: Response) {
+  try {
+    const token = req.cookies?.refreshToken as string | undefined;
+    if (!token) {
+      return res.status(400).json({
+        message: "Token Missing",
+      });
+    }
+    const payload = verifyRefreshToken(token);
+    const user = await User.findById(payload.sub);
+    if (!user) {
+      return res.status(400).json({
+        message: "User Not Found ",
+      });
+    }
+    if (user.tokenVersion !== payload.tokenVersion) {
+      return res.status(400).json({
+        message: "Invalid token",
+      });
+    }
+    const newAccessToken = createAccesToken(
+      user.id,
+      user.role,
+      user.tokenVersion,
+    );
+    const newRefreshToken = createRefreshToken(user.id, user.tokenVersion);
+    const isProd = process.env.NODE_ENV === "production";
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 10 * 24 * 60 * 60 * 1000,
+    });
+    return res.status(200).json({
+      message: "Token Refreshed",
+      accessToken: newAccessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+        twoFactorEnabled: user.twoFactorEnabled,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Error While refreshing Token",
       Error: error,
     });
   }
