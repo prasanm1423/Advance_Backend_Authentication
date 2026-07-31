@@ -10,7 +10,7 @@ const router = Router();
 
 router.post("/register", registerHandler);
 router.post("/login", loginHandler);
-router.get("/emailVerify", verifyHandle);
+router.get("/verify-email", verifyHandle);
 router.post("/refresh", refreshHandler);
 
 export default router;
