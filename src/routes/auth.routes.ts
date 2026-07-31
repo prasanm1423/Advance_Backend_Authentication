@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   loginHandler,
+  logOutHandler,
   refreshHandler,
   registerHandler,
   verifyHandle,
@@ -12,5 +13,6 @@ router.post("/register", registerHandler);
 router.post("/login", loginHandler);
 router.get("/verify-email", verifyHandle);
 router.post("/refresh", refreshHandler);
+router.post("/logout", logOutHandler);
 
 export default router;
