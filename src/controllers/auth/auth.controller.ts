@@ -215,3 +215,17 @@ export async function refreshHandler(req: Request, res: Response) {
     });
   }
 }
+export async function logOutHandler(_req: Request, res: Response) {
+  try {
+    res.clearCookie("refreshToken", { path: "/" });
+    return res.status(200).json({
+      message: "User Logged Out Successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(400).json({
+      message: "Error While user log out",
+      Error: err,
+    });
+  }
+}
