@@ -10,6 +10,7 @@ import { User } from "../../models/user.model.js";
 import { loginSchema, registerSchema } from "./auth.schema.js";
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 function getAppUrl() {
   return process.env.APP_URL || `http://localhost:${process.env.PORT}`;
@@ -225,6 +226,87 @@ export async function logOutHandler(_req: Request, res: Response) {
     console.log(err);
     return res.status(400).json({
       message: "Error While user log out",
+      Error: err,
+    });
+  }
+}
+export async function forgotPassword(req: Request, res: Response) {
+  const { email } = req.body as { email: string };
+  if (!email) {
+    return res.status(400).json({
+      message: "Email is required",
+    });
+  }
+  const normEmail = email.toLocaleLowerCase().trim();
+  try {
+    const user = await User.findOne({ email: normEmail });
+    if (!user) {
+      return res.status(400).json({
+        message: "User not found",
+      });
+    }
+    const rowToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(rowToken)
+      .digest("hex");
+    user.resetPassToke = tokenHash;
+    user.resetPassExpiry = new Date(Date.now() + 15 * 60 * 1000); //15 Minutes
+    await user.save();
+    const resetUrl = `${getAppUrl()}/auth/reset-pass?token=${rowToken}`;
+    await sendEmail(
+      user.email,
+      "Reset Your Password",
+      `<p>Click on the link to reset your Password</p>
+      <p><a href="${resetUrl}">${resetUrl}</a></p>`,
+    );
+    return res.json({ message: "Email send if user exists" });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      message: "Error while forgot password",
+      error: err,
+    });
+  }
+}
+export async function resetPassword(req: Request, res: Response) {
+  const { token, password } = req.body as { token?: string; password?: string };
+  if (!token) {
+    return res.status(400).json({
+      message: "Reset Token is missing",
+    });
+  }
+  if (!password || password.length < 6) {
+    return res.status(400).json({
+      message: "Password is not present or invalid",
+    });
+  }
+  try {
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      resetPassToke: tokenHash,
+      resetPassExpiry: {
+        $gt: new Date(),
+      },
+    });
+    if (!user) {
+      return res.status(400).json({
+        message: "User not found reseting password",
+      });
+    }
+    const newPassHash = await hashPass(password);
+    user.password = newPassHash;
+    user.resetPassToke = undefined;
+    user.resetPassExpiry = undefined;
+    user.tokenVersion = user.tokenVersion + 1;
+    await user.save();
+    return res.status(200).json({
+      message: "Password changes successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      messaage: "Error while reseting the Password",
       Error: err,
     });
   }
