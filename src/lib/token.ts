@@ -19,8 +19,16 @@ export function createRefreshToken(userId: string, tokenVersion: Number) {
 }
 
 export function verifyRefreshToken(token: string) {
-  return jwt.verify(token, process.env.JWT_ACCESS_SECRET !) as {
+  return jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as {
     sub: string;
     tokenVersion: number;
+  };
+}
+
+export function verifyAccessToken(token: string) {
+  return jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as {
+    sub: string;
+    role: "user" | "admin";
+    tokenVersion: Number;
   };
 }
