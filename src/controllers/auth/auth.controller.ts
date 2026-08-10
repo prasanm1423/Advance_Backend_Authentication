@@ -11,11 +11,26 @@ import { loginSchema, registerSchema } from "./auth.schema.js";
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { OAuth2Client } from "google-auth-library";
+import { error } from "console";
 
 function getAppUrl() {
   return process.env.APP_URL || `http://localhost:${process.env.PORT}`;
 }
+function getGoogleClient() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
 
+  if (!clientId || !clientSecret) {
+    throw new Error("Google client id or Secret not present");
+  }
+  return new OAuth2Client({
+    clientId,
+    clientSecret,
+    redirectUri,
+  });
+}
 export async function registerHandler(req: Request, res: Response) {
   try {
     const result = registerSchema.safeParse(req.body);
@@ -308,6 +323,22 @@ export async function resetPassword(req: Request, res: Response) {
     return res.status(500).json({
       messaage: "Error while reseting the Password",
       Error: err,
+    });
+  }
+}
+export async function googleAuthStartHandler(req: Request, res: Response) {
+  try {
+    const client = getGoogleClient();
+    const url = client.generateAuthUrl({
+      access_type: "offline",
+      prompt: "consent",
+      scope: ["openid", "email", "profile"],
+    });
+    return res.redirect(url);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      message: "Error while starting google auth Handler",
     });
   }
 }
