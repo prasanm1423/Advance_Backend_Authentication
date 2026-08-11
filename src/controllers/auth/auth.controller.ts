@@ -326,7 +326,7 @@ export async function resetPassword(req: Request, res: Response) {
     });
   }
 }
-export async function googleAuthStartHandler(req: Request, res: Response) {
+export async function googleAuthStartHandler(_req: Request, res: Response) {
   try {
     const client = getGoogleClient();
     const url = client.generateAuthUrl({
@@ -339,6 +339,84 @@ export async function googleAuthStartHandler(req: Request, res: Response) {
     console.log(err);
     return res.status(500).json({
       message: "Error while starting google auth Handler",
+    });
+  }
+}
+export async function googleAuthCallbackHandler(req: Request, res: Response) {
+  const code = req.query.code as string | undefined;
+  if (!code) {
+    return res.status(400).json({
+      Message: "Misiing code in callBack",
+    });
+  }
+  try {
+    const client = getGoogleClient();
+    const { tokens } = await client.getToken(code);
+    if (!tokens.id_token) {
+      return res.status(400).json({
+        message: "Invalid token",
+      });
+    }
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = payload?.email;
+    const emailVerified = payload?.email_verified;
+    if (!email || !emailVerified) {
+      return res.status(400).json({
+        Message: "Gmail is not verified ",
+      });
+    }
+    const normEmail = email.toLocaleLowerCase().trim();
+    let user = await User.findOne({
+      email: normEmail,
+    });
+    if (!user) {
+      const randomPass = crypto.randomBytes(16).toString("hex");
+      const passwordHash = await hashPass(randomPass);
+      user = await User.create({
+        email: normEmail,
+        password: passwordHash,
+        role: "user",
+        isEmailVerified: true,
+        twoFactorEnabled: false,
+      });
+    } else {
+      if (!user.isEmailVerified) {
+        user.isEmailVerified = true;
+        await user.save();
+      }
+    }
+    const accessToken = createAccesToken(
+      user.id,
+      user.role as "user" | "admin",
+      user.tokenVersion,
+    );
+    const refreshToken = createRefreshToken(user.id, user.tokenVersion);
+    const newRefreshToken = createRefreshToken(user.id, user.tokenVersion);
+    const isProd = process.env.NODE_ENV === "production";
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 10 * 24 * 60 * 60 * 1000,
+    });
+    return res.json({
+      message: "Google login successfull",
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: "Error while google login",
     });
   }
 }
