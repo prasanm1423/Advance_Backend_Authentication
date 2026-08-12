@@ -1,22 +1,24 @@
 # Advanced Backend Authentication API 🚀
 
-An enterprise-ready, highly secure RESTful authentication and user management API built with **Node.js**, **Express 5**, **TypeScript**, and **MongoDB (Mongoose)**. 
+A feature-rich, production-ready RESTful authentication and user management system built with **Node.js**, **Express 5**, **TypeScript**, and **MongoDB (Mongoose)**. 
 
-This project implements modern security standards including **JWT Access & Refresh Tokens**, **HTTP-Only Cookies**, **Token Versioning (Instant Session Invalidation)**, **Bcrypt Password Hashing**, **Zod Input Schema Validation**, **Nodemailer Email Verification**, and **Role-Based Access Control (RBAC)**.
+This project incorporates modern web security standards including **Google OAuth 2.0**, **Dual JWT (Access & Refresh) Tokens**, **HTTP-Only Cookies**, **Token Versioning (Instant Multi-Device Revocation)**, **Bcrypt Hashing**, **Zod Input Schema Validation**, **Nodemailer Email Verification**, and **Role-Based Access Control (RBAC)**.
 
 ---
 
 ## 🌟 Key Features
 
-- 🔐 **Secure Registration & Login**: User onboarding with bcrypt password hashing (12 salt rounds) and Zod payload validation.
-- ✉️ **Email Verification System**: Account activation via secure email links powered by Nodemailer.
-- 🔑 **Dual Token Authentication**: Short-lived Access Tokens (`30m`) paired with long-lived Refresh Tokens (`10d`).
-- 🍪 **HTTP-Only Cookie Storage**: Refresh tokens stored securely in `httpOnly`, `sameSite: lax` cookies to prevent XSS attacks.
-- 🔄 **Token Versioning**: Instantly invalidates all active tokens across devices whenever a user resets their password or updates security credentials.
-- 🔑 **Password Reset Flow**: Secure token-based password reset via email using SHA-256 hashed one-time tokens with expiration timer (15 minutes).
-- 🛡️ **Role-Based Access Control (RBAC)**: Enforced route-level protection (`requireAuth` & `requireRole`) supporting `user` and `admin` roles.
-- 🩺 **Health Monitoring**: Dedicated health check endpoint for monitoring uptime.
-- ⚡ **TypeScript & Express 5**: Modern ESModule codebase with full type safety and developer watch mode using `tsx`.
+- 🌐 **Google OAuth 2.0 Authentication**: Seamless social login flow with Google consent screens, ID token verification via `google-auth-library`, and automatic user account provision/verification.
+- 🔐 **User Registration & Login**: Standard email/password onboarding with password hashing (`bcrypt` with 12 salt rounds) and Zod payload validation.
+- ✉️ **Email Verification System**: Verification link sent upon registration powered by Nodemailer. Requires verification prior to password login.
+- 🔑 **Dual Token Architecture**:
+  - **Access Token**: Short-lived JWT (`30 minutes`) passed via `Authorization: Bearer <token>` header.
+  - **Refresh Token**: Long-lived JWT (`10 days`) stored securely in an `httpOnly`, `sameSite: lax` cookie.
+- 🔄 **Token Versioning (`tokenVersion`)**: In-database token version counter that invalidates all active sessions across all devices when a user resets their password.
+- 🔑 **Password Reset Flow**: Cryptographically secure single-use token (`crypto.randomBytes(32)` stored as a SHA-256 hash) with a strict 15-minute expiration timer.
+- 🛡️ **Role-Based Access Control (RBAC)**: Route protection via `requireAuth` and `requireRole("user" | "admin")` middlewares.
+- 🩺 **Health Check**: Endpoint (`/health`) to monitor service uptime.
+- ⚡ **TypeScript & Express 5**: Modern ESModule architecture (`"type": "module"`) with hot-reloading using `tsx`.
 
 ---
 
@@ -24,15 +26,15 @@ This project implements modern security standards including **JWT Access & Refre
 
 | Category | Technology |
 | :--- | :--- |
-| **Runtime Engine** | [Node.js](https://nodejs.org/) (ES Modules) |
-| **Language** | [TypeScript](https://www.typescriptlang.org/) |
-| **Web Framework** | [Express 5](https://expressjs.com/) |
-| **Database & ODM** | [MongoDB](https://www.mongodb.com/) / [Mongoose 9](https://mongoosejs.com/) |
+| **Runtime & Language** | [Node.js](https://nodejs.org/) (ES Modules) & [TypeScript 7](https://www.typescriptlang.org/) |
+| **Framework** | [Express 5](https://expressjs.com/) |
+| **Database & ODM** | [MongoDB](https://www.mongodb.com/) & [Mongoose 9](https://mongoosejs.com/) |
 | **Validation** | [Zod 4](https://zod.dev/) |
-| **Authentication** | [JSONWebToken (jsonwebtoken)](https://jwt.io/) |
-| **Security & Hashing** | [bcrypt](https://github.com/kelektiv/node.bcrypt.js) & Node.js `crypto` |
-| **Email Delivery** | [Nodemailer 9](https://nodemailer.com/) |
-| **Development Tools** | [tsx](https://github.com/privatenumber/tsx) (Dev Server Watcher) |
+| **OAuth & Social Auth**| [google-auth-library 11](https://github.com/googleapis/google-api-nodejs-client) |
+| **Authentication** | [jsonwebtoken 9](https://jwt.io/) & [cookie-parser 1.4](https://github.com/expressjs/cookie-parser) |
+| **Security & Hashing** | [bcrypt 6](https://github.com/kelektiv/node.bcrypt.js) & Node.js `crypto` |
+| **Email Transport** | [Nodemailer 9](https://nodemailer.com/) |
+| **Dev Tooling** | [tsx 4](https://github.com/privatenumber/tsx) (Development Runner & Watcher) |
 
 ---
 
@@ -42,53 +44,55 @@ This project implements modern security standards including **JWT Access & Refre
 Advance_Auth/
 ├── src/
 │   ├── config/
-│   │   └── db.ts                # MongoDB connection handler
+│   │   └── db.ts                  # MongoDB connection setup
 │   ├── controllers/
 │   │   └── auth/
-│   │       ├── auth.controller.ts # Auth business logic (register, login, refresh, reset, etc.)
-│   │       └── auth.schema.ts     # Zod validation schemas for registration & login
+│   │       ├── auth.controller.ts # Handlers for register, login, Google OAuth, refresh, logout, reset
+│   │       └── auth.schema.ts     # Zod validation schemas
 │   ├── lib/
-│   │   ├── email.ts             # Nodemailer transport & mail sending helper
-│   │   ├── hash.ts              # Bcrypt password hashing & verification utilities
-│   │   └── token.ts              # Access & Refresh JWT generation and verification
+│   │   ├── email.ts               # Nodemailer transporter helper
+│   │   ├── hash.ts                # Bcrypt hash and verification functions
+│   │   └── token.ts               # Access & Refresh JWT generators and verifiers
 │   ├── middleware/
-│   │   ├── requireAuth.ts       # JWT authentication & token version validator
-│   │   └── requireRole.ts       # Role-based access control (RBAC) middleware
+│   │   ├── requireAuth.ts         # JWT authentication & token version verification
+│   │   └── requireRole.ts         # Role-based access control middleware
 │   ├── models/
-│   │   └── user.model.ts        # Mongoose User schema & data model
+│   │   └── user.model.ts          # Mongoose User schema definition
 │   ├── routes/
-│   │   ├── admin.routes.ts      # Protected admin endpoints
-│   │   ├── auth.routes.ts       # Authentication routes (/auth)
-│   │   └── user.routes.ts       # Protected user endpoints (/user)
-│   ├── app.ts                   # Express application setup & middleware registration
-│   └── server.ts                # HTTP Server entry point & DB bootstrap
-├── .env                         # Environment variables (git-ignored)
-├── .gitignore                   # Ignored files list
-├── package.json                 # Project dependencies & scripts
-├── tsconfig.json                # TypeScript configuration
-└── README.md                    # Project documentation
+│   │   ├── admin.routes.ts        # Admin endpoints (/admin)
+│   │   ├── auth.routes.ts         # Authentication endpoints (/auth)
+│   │   └── user.routes.ts         # User profile endpoints (/user)
+│   ├── services/                  # Business logic services
+│   ├── app.ts                     # Express app configuration & middleware
+│   └── server.ts                  # HTTP Server bootstrapping & DB initialization
+├── dist/                          # Compiled JavaScript build output (generated via npm run build)
+├── .env                           # Local environment variables
+├── .gitignore                     # Git ignore rules
+├── package.json                   # NPM dependencies & scripts
+├── tsconfig.json                  # TypeScript compiler settings
+└── README.md                      # Documentation
 ```
 
 ---
 
-## 🗄️ Database Schema
+## 🗄️ Database Schema (`User` Model)
 
-### **User Collection (`users`)**
+The user document structure in MongoDB (`users` collection):
 
 ```typescript
 {
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true }, // Bcrypt hash
+  password: { type: String, required: true },               // Bcrypt hash (12 rounds)
   name: { type: String },
   role: { type: String, enum: ["user", "admin"], default: "user" },
   isEmailVerified: { type: Boolean, default: false },
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorSecret: { type: String, default: undefined },
-  tokenVersion: { type: Number, default: 0 }, // Used for global token revocation
-  resetPassToke: { type: String, default: undefined }, // SHA-256 hashed reset token
-  resetPassExpiry: { type: Date, default: undefined }, // Token expiration timestamp
-  createdAt: { type: Date },
-  updatedAt: { type: Date }
+  tokenVersion: { type: Number, default: 0 },              // Incremented on password reset to invalidate tokens
+  resetPassToke: { type: String, default: undefined },      // SHA-256 hash of password reset token
+  resetPassExpiry: { type: Date, default: undefined },      // 15-minute expiration timestamp
+  createdAt: { type: Date },                               // Auto-generated timestamp
+  updatedAt: { type: Date }                                // Auto-generated timestamp
 }
 ```
 
@@ -96,7 +100,7 @@ Advance_Auth/
 
 ## ⚙️ Environment Variables
 
-Create a `.env` file in the root directory and configure the following parameters:
+Create a `.env` file in the root folder with the following variables:
 
 ```env
 # Server Configuration
@@ -104,13 +108,18 @@ PORT=5000
 NODE_ENV=development
 APP_URL=http://localhost:5000
 
-# Database
+# Database Connection
 MONGO_URI=mongodb://localhost:27017/advance_auth
 
-# JWT Security
+# JWT Secret
 JWT_ACCESS_SECRET=your_super_secret_jwt_key_here
 
-# SMTP / Email Configuration
+# Google OAuth 2.0 Credentials
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:5000/auth/google/callback
+
+# SMTP Email Configuration (Nodemailer)
 SMTP_HOST=smtp.mailtrap.io
 SMTP_PORT=587
 SMTP_USER=your_smtp_username
@@ -120,15 +129,15 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started & Setup
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher recommended)
-- **MongoDB** instance (local server or MongoDB Atlas)
-- **NPM** or **Yarn**
+- **Node.js**: `v18+`
+- **MongoDB**: Local MongoDB instance or [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) URI
+- **Google Cloud Console Credentials**: OAuth 2.0 Client ID and Secret (for Google Login)
 
-### Installation
+### Installation Steps
 
 1. **Clone the repository**:
    ```bash
@@ -136,21 +145,21 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
    cd Advance_Backend_Authentication
    ```
 
-2. **Install dependencies**:
+2. **Install project dependencies**:
    ```bash
    npm install
    ```
 
 3. **Configure Environment Variables**:
-   Copy `.env.example` (or create `.env`) and populate the environment variables as shown above.
+   Create a `.env` file as shown in the section above.
 
-4. **Start the Development Server**:
+4. **Start Development Server**:
    ```bash
    npm run dev
    ```
-   The server will start listening at `http://localhost:5000`.
+   The application will start at `http://localhost:5000`.
 
-5. **Build for Production**:
+5. **Build & Run in Production**:
    ```bash
    npm run build
    npm start
@@ -162,22 +171,51 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
 
 ### 🩺 **Health Check**
 
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/health` | Public | Returns system health status |
+#### `GET /health`
+- **Access**: Public
+- **Response** (`200 OK`):
+  ```json
+  {
+    "status": "ok"
+  }
+  ```
 
 ---
 
-### 🔓 **Authentication Routes (`/auth`)**
+### 🔓 **Authentication Endpoints (`/auth`)**
 
-#### 1. Register User
+#### 1. Start Google OAuth Login
+- **Endpoint**: `GET /auth/google`
+- **Access**: Public
+- **Description**: Generates Google OAuth consent screen URL (`scopes`: `openid`, `email`, `profile`, `access_type`: `offline`) and redirects the user to Google Login.
+
+#### 2. Google OAuth Callback
+- **Endpoint**: `GET /auth/google/callback?code=<authorization_code>`
+- **Access**: Public
+- **Description**: Receives authorization code from Google, verifies the `id_token` via Google OAuth2Client, auto-creates/verifies the user account, issues JWT Access Token, sets `refreshToken` HTTP-Only cookie, and returns user payload.
+- **Response Header**: Sets `refreshToken` HTTP-Only cookie.
+- **Response Payload** (`200 OK`):
+  ```json
+  {
+    "message": "Google login successfull",
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "66b1a2c34f5e6d7a8b9c0d1e",
+      "email": "user@gmail.com",
+      "role": "user",
+      "isEmailVerified": true
+    }
+  }
+  ```
+
+#### 3. Register User (Email / Password)
 - **Endpoint**: `POST /auth/register`
 - **Access**: Public
-- **Request Body**:
+- **Body**:
   ```json
   {
     "email": "user@example.com",
-    "password": "securepassword123",
+    "password": "password123",
     "name": "John Doe"
   }
   ```
@@ -194,27 +232,27 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
   }
   ```
 
-#### 2. Verify Email
+#### 4. Verify Email
 - **Endpoint**: `GET /auth/verify-email?token=<verification_token>`
-- **Access**: Public (via email link)
+- **Access**: Public (Clicked via email)
 - **Response** (`200 OK`):
   ```json
   {
-    "message": "Email is Verified. You can login"
+    "message": "Email is Verified.You can login"
   }
   ```
 
-#### 3. Login
+#### 5. Login (Email / Password)
 - **Endpoint**: `POST /auth/login`
-- **Access**: Public (Email must be verified)
-- **Request Body**:
+- **Access**: Public (Requires verified email)
+- **Body**:
   ```json
   {
     "email": "user@example.com",
-    "password": "securepassword123"
+    "password": "password123"
   }
   ```
-- **Response Header**: Sets `refreshToken` HTTP-Only cookie.
+- **Response Header**: Sets `refreshToken` in `httpOnly` cookie (`maxAge`: 10 days).
 - **Response Payload** (`200 OK`):
   ```json
   {
@@ -230,7 +268,7 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
   }
   ```
 
-#### 4. Refresh Access Token
+#### 6. Refresh Access Token
 - **Endpoint**: `POST /auth/refresh`
 - **Access**: Public (Requires `refreshToken` cookie)
 - **Response Payload** (`200 OK`):
@@ -238,28 +276,39 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
   {
     "message": "Token Refreshed",
     "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": { ... }
+    "user": {
+      "id": "66b1a2c34f5e6d7a8b9c0d1e",
+      "email": "user@example.com",
+      "role": "user",
+      "isEmailVerified": true,
+      "twoFactorEnabled": false
+    }
   }
   ```
 
-#### 5. Forgot Password
+#### 7. Forgot Password
 - **Endpoint**: `POST /auth/forgot-password`
 - **Access**: Public
-- **Request Body**:
+- **Body**:
   ```json
   {
     "email": "user@example.com"
   }
   ```
-- **Response** (`200 OK`): Sends a password reset URL to user's email address.
-
-#### 6. Reset Password
-- **Endpoint**: `POST /auth/reset-password`
-- **Access**: Public
-- **Request Body**:
+- **Response** (`200 OK`):
   ```json
   {
-    "token": "<raw_reset_token_from_email>",
+    "message": "Email send if user exists"
+  }
+  ```
+
+#### 8. Reset Password
+- **Endpoint**: `POST /auth/reset-password`
+- **Access**: Public
+- **Body**:
+  ```json
+  {
+    "token": "<raw_token_from_email>",
     "password": "newSecurePassword123"
   }
   ```
@@ -269,19 +318,25 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
     "message": "Password changes successfully"
   }
   ```
+- *Note*: Successfully resetting the password increments `tokenVersion`, invalidating all active sessions.
 
-#### 7. Logout
+#### 9. Logout
 - **Endpoint**: `POST /auth/logout`
 - **Access**: Public
-- **Response** (`200 OK`): Clears `refreshToken` HTTP-Only cookie.
+- **Response** (`200 OK`): Clears `refreshToken` cookie.
+  ```json
+  {
+    "message": "User Logged Out Successfully"
+  }
+  ```
 
 ---
 
-### 👤 **User Routes (`/user`)**
+## 👤 **User Endpoints (`/user`)**
 
-#### Get User Profile
+#### Get Authenticated User Profile
 - **Endpoint**: `GET /user/me`
-- **Access**: Private (`Authorization: Bearer <accessToken>`)
+- **Access**: Protected (`Authorization: Bearer <accessToken>`)
 - **Response** (`200 OK`):
   ```json
   {
@@ -297,12 +352,11 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
 
 ---
 
-### 🛡️ **Admin Routes (`/admin`)**
+## 🛡️ **Admin Endpoints (`/admin`)**
 
-#### List All Registered Users
+#### Fetch All Registered Users
 - **Endpoint**: `GET /admin/users`
-- **Access**: Private (`Admin` role required)
-- **Headers**: `Authorization: Bearer <accessToken>`
+- **Access**: Protected (`Authorization: Bearer <accessToken>`, Admin role required)
 - **Response** (`200 OK`):
   ```json
   {
@@ -320,16 +374,30 @@ EMAIL_FROM="Advance Auth" <no-reply@example.com>
 
 ---
 
-## 🔒 Security Best Practices Implemented
+## 🔒 Security Architecture Highlights
 
-1. **Password Hashing**: Passwords are never stored in plain text. They are hashed using `bcrypt` with a salt factor of 12 before persistence.
-2. **HTTP-Only Cookies**: Refresh tokens are served via `httpOnly` cookies, shielding them from client-side script access and DOM/XSS vulnerabilities.
-3. **Token Versioning Mechanism**: `tokenVersion` counter is embedded in JWT payloads. Incrementing this counter instantly invalidates all active access and refresh tokens issued across all devices (e.g. upon password reset).
-4. **Input Sanitization & Schema Validation**: Endpoint parameters are rigorously validated using `Zod` schemas before processing.
-5. **Secure Token Reset**: Password reset tokens are generated using cryptographically secure random bytes (`crypto.randomBytes`) and stored in the database as SHA-256 hashes with a strict 15-minute expiration window.
+1. **Google OAuth 2.0 Verification**: Implements `google-auth-library` to exchange authorization codes and verify Google ID tokens (`ticket.getPayload()`), ensuring users authenticate securely via Google.
+2. **Bcrypt Password Hashing**: Standard password logins are securely hashed with 12 salt rounds before database persistence.
+3. **HTTP-Only Cookie Protection**: Refresh tokens are isolated inside HTTP-Only cookies to protect against Cross-Site Scripting (XSS).
+4. **Session Revocation via `tokenVersion`**:
+   - `tokenVersion` is encoded inside both Access and Refresh JWT payloads.
+   - The `requireAuth` and `refreshHandler` middlewares compare the payload version against the live database record.
+   - On password reset, `tokenVersion` is incremented by 1, instantly rendering all existing access and refresh tokens invalid across all devices.
+5. **Secure Reset Token Hashing**: Password reset raw tokens are transmitted via email, but only SHA-256 cryptographic hashes are saved in MongoDB alongside a 15-minute expiry timestamp.
+6. **Request Schema Validation**: All authentication routes sanitize and validate request bodies using Zod schemas (`registerSchema`, `loginSchema`).
 
 ---
 
-## 📜 License
+## 📜 NPM Scripts
+
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Runs the server in watch mode using `tsx` |
+| `npm run build` | Compiles TypeScript code to JavaScript inside `/dist` |
+| `npm run start` | Runs compiled JavaScript server from `/dist/server.js` |
+
+---
+
+## 📄 License
 
 This project is licensed under the [ISC License](LICENSE).
